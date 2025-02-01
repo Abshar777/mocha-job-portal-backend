@@ -9,16 +9,23 @@ import UserRepository from "../../repository/Implements/user.repository";
 import type IUserRepository from "../../repository/interface/IUserRepository";
 import type IJwt from "../../types/interface/IJwt";
 import type IKafka from "../../types/interface/IKafka";
+import type IOtpRepository from "../../repository/interface/IOtpRepository";
+import OtpRepository from "../../repository/Implements/otp.repository";
+import generateOtp from "../../utils/otpCreator";
+import { sendEmail } from "../../utils/nodemail";
+import sendMail from "../../utils/sendMail";
 
 @Service()
 class UserController {
     private readonly userRepository: IUserRepository;
     private readonly jwt: IJwt;
     private readonly kafka: IKafka;
+    private readonly otpRepository: IOtpRepository;
     constructor() {
         this.userRepository = new UserRepository();
         this.jwt = new Jwt();
-        this.kafka = new MessageBroker()
+        this.kafka = new MessageBroker();
+        this.otpRepository = new OtpRepository();
     }
 
 
@@ -33,8 +40,12 @@ class UserController {
                 res.status(400);
                 throw new Error("User already exists");
             }
-            const user = await this.userRepository.create({ name, email, password });
-
+            const user = await this.userRepository.create({ name, email, password, verified: false });
+            const otpCode = generateOtp()
+            const createdOtp = await this.otpRepository.create({ email, otp: otpCode, userId: user._id as string });
+            if (createdOtp) {
+                await sendMail(email, `mocha verifcation code for ${name}`, `you verification code ${otpCode}`, { name, otp: otpCode, link: process.env.FRONTEND_LINK + "/auth/otp" })
+            } else throw new Error("🔴 when creating otp have a problem")
             if (user) {
                 const jwtPayload = { userId: user._id }
                 const accesToken = this.jwt.generateAccessToken(jwtPayload);
@@ -53,7 +64,7 @@ class UserController {
                 });
             } else {
                 res.status(400);
-                throw new Error("User not created");
+                throw new Error("🔴 User not created");
             }
         } catch (err) {
             next(err);
@@ -188,6 +199,7 @@ class UserController {
             next(error);
         }
     }
+
 
     //@desc    Search user
     //@body    text

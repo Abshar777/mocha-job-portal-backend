@@ -9,6 +9,7 @@ const UserSchema: Schema = new Schema({
     email: { type: String, unique: true },
     role: { type: String, enum:[Roles.JOBSEEKER,Roles.RECRUITER]},
     password: { type: String },
+    verified:{type:Boolean,default:false}
 });
 
 

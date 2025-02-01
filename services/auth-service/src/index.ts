@@ -9,7 +9,7 @@ import morgan from "morgan";
 import helmet from "helmet";
 import mongosanitize from "express-mongo-sanitize"
 import limiter from "./utils/rateLimiter";
-import authRouter from "./routers/auth.router"
+import authRouter from "./routers/auth.routes"
 
 
 

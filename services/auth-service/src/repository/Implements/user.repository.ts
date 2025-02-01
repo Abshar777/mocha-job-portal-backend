@@ -1,6 +1,6 @@
 import { Model } from "mongoose";
 import type IUser from "../../types/interface/IUser";
-import userModel from "../../models/userModel";
+import userModel from "../../models/user.model";
 import { Service } from "typedi";
 import type { UserDocument } from "../../types/interface/IUser";
 import type IUserRepository from "../interface/IUserRepository";

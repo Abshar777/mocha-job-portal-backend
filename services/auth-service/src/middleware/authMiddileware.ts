@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import type { AuthRequest } from "../types/api";
 import Jwt from "../utils/jwt";
-import userSchema from "../models/userModel";
+import userSchema from "../models/user.model";
 import  type{ JwtPayload } from "jsonwebtoken";
 
 
@@ -28,10 +28,11 @@ const authMiddilware = async (req: AuthRequest, res: Response, next: NextFunctio
             res.status(400);
             throw new Error("user not found or user is Blocked");
         }
+        req.userName=user.name;
+        req.userEmail=user.email;
         req.user = userId as string;
         next();
     } catch (error) {
-        console.log(error, 'aajajja');
         res.status(401).json({ message: "user token is expired" })
 
     }

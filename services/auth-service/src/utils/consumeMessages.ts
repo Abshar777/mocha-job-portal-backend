@@ -1,4 +1,4 @@
-import userSchema from "../models/userModel";
+import userSchema from "../models/user.model";
 import proccesData from "../service/proccesData";
 import type { UserDocument } from "../types/interface/IUser";
 

@@ -6,6 +6,7 @@ export default interface IUser  {
     email: string;
     role?: Roles.JOBSEEKER | Roles.RECRUITER;
     password: string;
+    verified:boolean
 }
 
 export interface UserDocument extends IUser , Document {
