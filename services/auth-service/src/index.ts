@@ -10,7 +10,8 @@ import helmet from "helmet";
 import mongosanitize from "express-mongo-sanitize"
 import limiter from "./utils/rateLimiter";
 import authRouter from "./routers/auth.routes"
-
+import otpRouter from "./routers/otp.routes";
+import passwordRoute from "./routers/password.routes";
 
 
 process.on("uncaughtException", (err) => {
@@ -51,6 +52,8 @@ else app.use(limiter)
 
 // router middleware
 app.use(apiRoot+"/auth",authRouter);
+app.use(apiRoot+"/otp",otpRouter);
+app.use(apiRoot+"/password",passwordRoute);
 
 
 // error middleware
