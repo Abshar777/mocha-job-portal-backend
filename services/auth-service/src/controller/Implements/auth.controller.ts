@@ -4,7 +4,7 @@ import MessageBroker from "../../utils/messageBroker";
 import type { AuthRequest } from "../../types/api";
 import { Event } from "../../types/enums";
 import type { JwtPayload } from "jsonwebtoken";
-import { Inject, Service } from "typedi";
+import { Service } from "typedi";
 import UserRepository from "../../repository/Implements/user.repository";
 import type IUserRepository from "../../repository/interface/IUserRepository";
 import type IJwt from "../../types/interface/IJwt";
@@ -12,7 +12,6 @@ import type IKafka from "../../types/interface/IKafka";
 import type IOtpRepository from "../../repository/interface/IOtpRepository";
 import OtpRepository from "../../repository/Implements/otp.repository";
 import generateOtp from "../../utils/otpCreator";
-import { sendEmail } from "../../utils/nodemail";
 import sendMail from "../../utils/sendMail";
 
 @Service()
@@ -28,39 +27,56 @@ class UserController {
         this.otpRepository = new OtpRepository();
     }
 
-
-    //@desc    register user
-    //@body    name,email,password
-    //@method  POST
+    /**
+     * @desc    Register new user
+     * @body    name, email, password
+     * @method  POST
+     * @access  Public
+     */
     async registerUser(req: Request, res: Response, next: NextFunction) {
         try {
             const { name, email, password } = req.body;
             const exist = await this.userRepository.findByEmail(email);
-            if (exist) {
+
+            if (exist&&exist.verified) {
                 res.status(400);
                 throw new Error("User already exists");
             }
+            if(exist?.verified==false){
+                await this.userRepository.delete(exist._id as string);
+                //WIREUP delet event using kafka
+            }
             const user = await this.userRepository.create({ name, email, password, verified: false });
+
             const otpCode = generateOtp()
+
             const createdOtp = await this.otpRepository.create({ email, otp: otpCode, userId: user._id as string });
+
             if (createdOtp) {
-                await sendMail(email, `mocha verifcation code for ${name}`, `you verification code ${otpCode}`, { name, otp: otpCode, link: process.env.FRONTEND_LINK + "/auth/otp" })
+                await sendMail(email, `mocha verifcation code for ${name}`, `you verification code ${otpCode}`, { name, otp: otpCode, link: process.env.FRONTEND_LINK + "/auth/otp" });
+
+                console.log('email send succefully');
+
             } else throw new Error("🔴 when creating otp have a problem")
+           
             if (user) {
-                const jwtPayload = { userId: user._id }
-                const accesToken = this.jwt.generateAccessToken(jwtPayload);
-                const refreshToken = this.jwt.generateRefreshToken(jwtPayload);
-                await this.kafka.publish("User-Topic", { data: user }, Event.CREATE);
-                res.cookie("__refreshToken", refreshToken, {
+                const jwtPayload = { userId: user._id,type:"__refreshToken" };
+
+                const token = this.jwt.generateToken(jwtPayload);
+
+                // WIRE UP: User Event Pass
+
+                res.cookie("otp", token, {
                     httpOnly: true,
                     maxAge: 30 * 24 * 60 * 60 * 1000,
                     path: "/",
                 });
+
                 res.status(200).json({
                     success: true,
                     message: "User successfully created",
                     data: user,
-                    token: accesToken,
+                    token: token,
                 });
             } else {
                 res.status(400);
@@ -71,36 +87,44 @@ class UserController {
         }
     }
 
-    //@desc    login route
-    //@body    email,password
-    //@method  POST
+    /**
+     * @desc    Login user
+     * @body    email, password
+     * @method  POST
+     * @access  Public
+     */
     async login(req: Request, res: Response, next: NextFunction) {
         try {
             const { email, password } = req.body;
-            console.log()
+
             const user = await this.userRepository.findByEmail(email);
+
             if (!user) {
                 res.status(400);
+
                 throw new Error("User not found");
             }
             const isMatch = user.comparePassword(password);
+
             if (!isMatch) {
                 res.status(400);
+
                 throw new Error("Password is incorrect");
             } else {
                 const jwtPayload = { userId: user._id };
-                const accesToken = this.jwt.generateAccessToken(jwtPayload);
+
                 const refreshToken = this.jwt.generateRefreshToken(jwtPayload);
+
                 res.cookie("__refreshToken", refreshToken, {
                     httpOnly: true,
                     maxAge: 30 * 24 * 60 * 60 * 1000,
                     path: "/",
                 });
+
                 res.status(200).json({
                     success: true,
                     message: "User successfully logged in",
                     data: user,
-                    token: accesToken
                 });
             }
         } catch (error) {
@@ -108,8 +132,12 @@ class UserController {
         }
     }
 
-    //@desc    check user
-    //@method  GET
+    /**
+     * @desc    Check user authentication
+     * @method  GET
+     * @access  Private
+     * @header  Authorization Bearer token
+     */
     async checkUser(req: AuthRequest, res: Response, next: NextFunction) {
         try {
             const userId = req.user;
@@ -124,9 +152,13 @@ class UserController {
         }
     }
 
-    // @desc    setup user role
-    // @method  POST
-    // @body    id:userID,role
+    /**
+     * @desc    Setup user role
+     * @body    id, role
+     * @method  POST
+     * @access  Private
+     * @header  Authorization Bearer token
+     */
     async roleSetup(req: AuthRequest, res: Response, next: NextFunction) {
         try {
             const { id, role } = req.body;
@@ -139,8 +171,12 @@ class UserController {
         }
     }
 
-    //@desc    logout user
-    //@method  POST
+    /**
+     * @desc    Logout user
+     * @method  POST
+     * @access  Private
+     * @header  Authorization Bearer token
+     */
     logoutUser(req: AuthRequest, res: Response) {
         res.cookie("__refreshToken", "", {
             httpOnly: true,
@@ -151,9 +187,12 @@ class UserController {
         res.status(200).json({ message: "User successfully logged out" });
     }
 
-    //@desc    refresh token
-    //@method  POST
-    // @cookies   __refreshToken
+    /**
+     * @desc    Refresh access token
+     * @method  POST
+     * @access  Public
+     * @cookie  __refreshToken
+     */
     async refreshTokenGet(req: AuthRequest, res: Response, next: NextFunction) {
         try {
             const refreshToken = req.cookies?.__refreshToken;
@@ -189,8 +228,12 @@ class UserController {
         }
     }
 
-    //@desc    get all users
-    //@method  GET
+    /**
+     * @desc    Get all users
+     * @method  GET
+     * @access  Public (WIRE_UP :should be Admin)
+     * @todo    Add admin access restriction
+     */
     async getAllUsers(req: AuthRequest, res: Response, next: NextFunction) {
         try {
             const users = await this.userRepository.find(100); // Using repository with a limit of 100 users
@@ -200,10 +243,13 @@ class UserController {
         }
     }
 
-
-    //@desc    Search user
-    //@body    text
-    //@method  GET
+    /**
+     * @desc    Search users
+     * @body    text
+     * @method  GET
+     * @access  Private
+     * @header  Authorization Bearer token
+     */
     async searchUser(req: AuthRequest, res: Response, next: NextFunction) {
         try {
             const { text } = req.body;

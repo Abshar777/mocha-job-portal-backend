@@ -8,25 +8,36 @@ import generateOtp from "../../utils/otpCreator";
 import sendMail from "../../utils/sendMail";
 import type IOtpController from "../interface/IOtpController";
 import type { AuthRequest } from "../../types/api";
+import JwtService from "../../utils/jwt";
+import type { JwtPayload } from "jsonwebtoken";
+import type IJwtService from "../../types/interface/IJwt";
 
 @Service()
 class OtpController implements IOtpController {
     private readonly otpRepository: IOtpRepository;
     private readonly userRepository: IUserRepository;
+    private readonly jwt: IJwtService;
 
     constructor() {
         this.otpRepository = new OtpRepository();
         this.userRepository = new UserRepository();
+        this.jwt = new JwtService();
     }
 
     //@desc    Verify OTP
-    //@body     otp
-    //@method  POST
-    async verifyOtp(req: AuthRequest, res: Response, next: NextFunction) {
+    //@body     otp,email
+    //@method  PUT
+    async verifyOtp(req: Request, res: Response, next: NextFunction) {
         try {
-            const { otp } = req.body;
-            const email = req.userEmail as string;
+            const { otp, email } = req.body;
 
+            const otpToken = req.cookies?.otp;
+            const { type, userId } = this.jwt.verifyToken(otpToken, "token") as JwtPayload;
+
+            if (otpToken) {
+                res.status(401);
+                throw new Error("unauthrized");
+            }
 
             const isValid = await this.otpRepository.verifyOtp(email, otp);
             if (!isValid) {
@@ -36,19 +47,40 @@ class OtpController implements IOtpController {
 
 
             const user = await this.userRepository.findByEmail(email);
-            if (!user) {
+            if (!user || user._id !== userId) {
                 res.status(404);
-                throw new Error("User not found");
+                throw new Error("User not found, or User Id Is Not Matching to cookie");
             }
 
-            await this.userRepository.updateUser(user._id as string, { verified: true });
+
 
 
             await this.otpRepository.deleteByEmail(email);
 
+            res.clearCookie("otp");
+
+            const jwtPayload = { userId }
+            const accesToken = this.jwt.generateToken(jwtPayload, "1d");
+            const refreshToken = this.jwt.generateRefreshToken(jwtPayload);
+            if (type == "__reset_session") {
+                res.cookie(type, accesToken, {
+                    httpOnly: true,
+                    maxAge: 1 * 24 * 60 * 60 * 1000,
+                    path: "/",
+                });
+            } else {
+                const userData = await this.userRepository.updateUser(user._id as string, { verified: true });
+                res.cookie("__refreshToken", refreshToken, {
+                    httpOnly: true,
+                    maxAge: 30 * 24 * 60 * 60 * 1000,
+                    path: "/",
+                });
+                //WIRE UP: publish user data in kafka
+            }
             res.status(200).json({
                 success: true,
                 message: "OTP verified successfully",
+                token: accesToken
             });
         } catch (error) {
             next(error);
@@ -57,16 +89,20 @@ class OtpController implements IOtpController {
 
     //@desc    Resend OTP
     //@method  POST
-    async resendOtp(req: AuthRequest, res: Response, next: NextFunction) {
+    //@body    email
+    async resendOtp(req: Request, res: Response, next: NextFunction) {
         try {
-            const { user: userId, userEmail: email, userName: name } = req;
-
-
+            const { email } = req.body;
+            const user = await this.userRepository.findByEmail(email);
+            if (!user) {
+                res.status(400);
+                throw new Error(`user email is not valid`)
+            }
             const newOtp = generateOtp();
 
 
             const createdOtp = await this.otpRepository.create({
-                userId,
+                userId: user._id as string,
                 email,
                 otp: newOtp,
             });
@@ -92,6 +128,18 @@ class OtpController implements IOtpController {
                 res.status(500);
                 throw new Error("Failed to send OTP email");
             }
+            const type = user.verified ? "__reset_session" : "__refreshToken";
+            const jwtPayload = { userId: user._id, type };
+
+            const token = this.jwt.generateToken(jwtPayload);
+
+            // WIRE UP: User Event Pass
+
+            res.cookie("otp", token, {
+                httpOnly: true,
+                maxAge: 30 * 24 * 60 * 60 * 1000,
+                path: "/",
+            });
 
             res.status(200).json({
                 success: true,
@@ -104,22 +152,32 @@ class OtpController implements IOtpController {
 
     //@desc    Check OTP Status
     //@method  GET
+    //@cookie  OTP
+    //@query   EMAIL
     async checkOtpStatus(req: AuthRequest, res: Response, next: NextFunction) {
         try {
-            const userId = req.user;
+            const token = req.cookies?.otp;
+            const email = req.query?.email as string
+            const { userId } = this.jwt.verifyToken(token, "token") as JwtPayload;
+
+            if (!userId || !email) {
+                res.status(400);
+                throw new Error("user id is not get")
+            }
 
             const otpRecord = await this.otpRepository.findByUserId(userId as string);
-
-            if (!otpRecord) {
+            if (!otpRecord || otpRecord.email !== email) {
                 res.status(404);
                 throw new Error("🔴 otp not found");
             }
+
 
             res.status(200).json({
                 success: true,
                 data: {
                     hasOtp: !!otpRecord,
-                    createdAt: otpRecord.createdAt
+                    createdAt: otpRecord.createdAt,
+                    used: otpRecord.used
                 }
             });
         } catch (error) {

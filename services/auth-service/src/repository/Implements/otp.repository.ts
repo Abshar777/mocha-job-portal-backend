@@ -3,10 +3,12 @@ import type IOtp from "../../types/interface/IOtp";
 import type IOtpRepository from "../interface/IOtpRepository";
 import OtpModel from "../../models/otp.model";
 import { Model } from "mongoose";
+import type { OtpDocument } from "../../types/interface/IOtp";
+
 
 @Service()
 export default class OtpRepository implements IOtpRepository {
-    private readonly otpModel: Model<IOtp>;
+    private readonly otpModel: Model<OtpDocument>;
 
     constructor() {
         this.otpModel = OtpModel;
@@ -36,7 +38,7 @@ export default class OtpRepository implements IOtpRepository {
     async verifyOtp(email: string, otp: string): Promise<boolean> {
         const otpRecord = await this.otpModel.findOne({ email });
         if (!otpRecord) return false;
-        const result = (otpRecord.otp === otp && !otpRecord.used);
+        const result = otpRecord.verifyOtp(otp);
         if (result) {
             otpRecord.used = true;
             await otpRecord.save()

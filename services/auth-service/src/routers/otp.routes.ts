@@ -1,19 +1,17 @@
 import { Router } from "express";
-import { Container } from "typedi";
 import OtpController from "../controller/Implements/otp.controller";
 import { validate } from "../middleware/validateMiddleware";
-import { otpVerifySchema } from "../validator/otp.validator";
-import type IOtpController from "../controller/interface/IOtpController";
+import { otpVerifySchema,checkOtpStatusSchema,resendOtpSchema } from "../validator/otp.validator";
 
 const router = Router();
 const otpController=new OtpController()
 
 /**
- * @route   POST /api/otp/verify
+ * @route   PUT /api/otp/verify
  * @desc    Verify OTP
- * @access  Privet
+ * @access  Public
  */
-router.post(
+router.put(
     '/verify',
     validate(otpVerifySchema),
     otpController.verifyOtp.bind(otpController)
@@ -22,20 +20,22 @@ router.post(
 /**
  * @route   POST /api/otp/resend
  * @desc    Resend OTP
- * @access  Privet
+ * @access  Public
  */
 router.post(
     '/resend',
+    validate(resendOtpSchema),
     otpController.resendOtp.bind(otpController)
 );
 
 /**
- * @route   GET /api/otp/status
+ * @route   POST /api/otp/status
  * @desc    Check OTP status
- * @access  Privet
+ * @access  Public
  */
-router.get(
+router.post(
     '/status',
+    validate(checkOtpStatusSchema),
     otpController.checkOtpStatus.bind(otpController)
 );
 
