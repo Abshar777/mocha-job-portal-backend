@@ -73,4 +73,18 @@ router.get(
     controller.getAllUsers.bind(controller)
 );
 
+
+router.get(
+    "/test",
+    (req, res) => {
+        console.log('🟢 get')
+        res.cookie("test", { data: "ahbaba" }, {
+            httpOnly: true,
+            maxAge: 30 * 24 * 60 * 60 * 1000,
+            path: "/",
+        })
+        res.status(200).json({data:"fdaya"})
+    }
+)
+
 export default router;

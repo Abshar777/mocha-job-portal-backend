@@ -18,7 +18,7 @@ export default class UserRepository implements IUserRepository {
         return await this.db.create(data);
     }
     async updateUser(userId: string, data: Partial<IUser>) {
-        return await this.db.findOneAndUpdate({ userId }, data, { new: true });
+        return await this.db.findOneAndUpdate({ _id:userId }, data, { new: true });
     }
     async delete(userId: string) {
         await this.db.findOneAndDelete({ userId });
@@ -29,8 +29,10 @@ export default class UserRepository implements IUserRepository {
     async findByEmail(email: string): Promise<UserDocument | null> {
         return await this.db.findOne({ email });
     }
+
+
     async find(limit: number): Promise<UserDocument[] | []> {
-        return await this.db.find({}).limit(limit);
+        return await this.db.find({}).limit(limit).select({password:0});
     }
     async search(text: string, currentUserId: string): Promise<UserDocument[]> {
         return await this.db.find({
@@ -39,7 +41,7 @@ export default class UserRepository implements IUserRepository {
                 { name: { $regex: text, $options: 'i' } }
             ],
             _id: { $ne: currentUserId }
-        });
+        }).select({password:0});
     }
 }
 

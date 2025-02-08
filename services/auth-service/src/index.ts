@@ -37,17 +37,16 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser())
 
 
-
 // secuirity middleware
 app.use(cors({
-    origin: "*",
+    origin: "http://localhost:3000",
     methods: ["GET", "PATCH", "POST", "DELETE", "PUT"],
     credentials: true,
 }))
 app.use(helmet())
 app.use(mongosanitize())
 if (process.env.NODE_ENV === "development") app.use(morgan("dev"));
-else app.use(limiter)
+// else app.use(limiter)
 
 
 // router middleware

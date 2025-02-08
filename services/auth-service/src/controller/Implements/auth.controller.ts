@@ -37,15 +37,11 @@ class UserController {
         try {
             const { name, email, password } = req.body;
             const exist = await this.userRepository.findByEmail(email);
-
-            if (exist&&exist.verified) {
+            if (exist) {
                 res.status(400);
                 throw new Error("User already exists");
             }
-            if(exist?.verified==false){
-                await this.userRepository.delete(exist._id as string);
-                //WIREUP delet event using kafka
-            }
+
             const user = await this.userRepository.create({ name, email, password, verified: false });
 
             const otpCode = generateOtp()
@@ -58,9 +54,9 @@ class UserController {
                 console.log('email send succefully');
 
             } else throw new Error("🔴 when creating otp have a problem")
-           
+
             if (user) {
-                const jwtPayload = { userId: user._id,type:"__refreshToken" };
+                const jwtPayload = { userId: user._id, type: "__refreshToken" };
 
                 const token = this.jwt.generateToken(jwtPayload);
 
@@ -71,13 +67,14 @@ class UserController {
                     maxAge: 30 * 24 * 60 * 60 * 1000,
                     path: "/",
                 });
-
+                const data = { name: user.name, email: user.email, role: user.role, verified: user.verified,_id:user._id }
                 res.status(200).json({
                     success: true,
                     message: "User successfully created",
-                    data: user,
+                    data: data,
                     token: token,
                 });
+
             } else {
                 res.status(400);
                 throw new Error("🔴 User not created");
@@ -96,7 +93,6 @@ class UserController {
     async login(req: Request, res: Response, next: NextFunction) {
         try {
             const { email, password } = req.body;
-
             const user = await this.userRepository.findByEmail(email);
 
             if (!user) {
@@ -121,11 +117,14 @@ class UserController {
                     path: "/",
                 });
 
+                const data = { name: user.name, email: user.email, role: user.role, verified: user.verified,_id:user._id }
+
                 res.status(200).json({
                     success: true,
                     message: "User successfully logged in",
-                    data: user,
+                    data,
                 });
+
             }
         } catch (error) {
             next(error);
