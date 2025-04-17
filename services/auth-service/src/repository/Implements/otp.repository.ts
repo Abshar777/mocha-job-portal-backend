@@ -3,6 +3,7 @@ import type IOtp from "../../types/interface/IOtp";
 import type IOtpRepository from "../interface/IOtpRepository";
 import OtpModel from "../../models/otp.model";
 import { Model } from "mongoose";
+import { hash } from "../../utils/bcrypt";
 import type { OtpDocument } from "../../types/interface/IOtp";
 
 
@@ -15,9 +16,10 @@ export default class OtpRepository implements IOtpRepository {
     }
 
     async create(data: IOtp): Promise<IOtp> {
+        const otpCode = await hash(data.otp)
         const otp = await this.otpModel.findOneAndUpdate(
             { email: data.email },
-            data,
+            { ...data, otp: otpCode },
             { upsert: true, new: true }
         );
         return otp;
@@ -27,7 +29,7 @@ export default class OtpRepository implements IOtpRepository {
         return await this.otpModel.findOne({ email });
     }
 
-    async findByUserId(userId:string){
+    async findByUserId(userId: string) {
         return await this.otpModel.findOne({ userId });
     }
 

@@ -18,6 +18,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "axios": "^1.7.9",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -37,6 +38,7 @@
     "resend": "^4.1.1",
     "socket.io": "^4.8.1",
     "typedi": "^0.10.0",
+    "uuid": "^11.0.5",
     "xss-clean": "^0.1.4",
     "zod": "^3.24.1"
   }

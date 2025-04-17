@@ -15,18 +15,26 @@ const otpSchema = new Schema<OtpDocument>(
 
 
 otpSchema.pre<OtpDocument>("save", async function (next) {
+
     if (!this.isModified("otp")) {
         return next();
     }
 
     const salt = await bcrypt.genSalt(10);
     this.otp = await bcrypt.hash(this.otp, salt);
+
     next();
 });
 
 
+
 otpSchema.methods.verifyOtp = function (otp: string) {
     return bcrypt.compareSync(otp, this.otp);
+}
+
+otpSchema.methods.hashOtp = async function (otp: string) {
+    const salt = await bcrypt.genSalt(10);
+    return await bcrypt.hash(otp, salt);
 }
 
 const OtpModel = model<OtpDocument>('Otp', otpSchema);
@@ -34,3 +42,4 @@ const OtpModel = model<OtpDocument>('Otp', otpSchema);
 
 
 export default OtpModel;
+

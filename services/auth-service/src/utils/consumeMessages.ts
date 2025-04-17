@@ -6,8 +6,7 @@ import type { UserDocument } from "../types/interface/IUser";
 
 
 const consumeMessages = () => {
-  proccesData<UserDocument>("Post-Topic-User", "user-group", userSchema); //for user from post service
-  proccesData<UserDocument>("Story-topic", "user-group-story", userSchema); //for user from story service
+  proccesData<UserDocument>("User-Topic", "auth-group", userSchema);
 };
 
 export default consumeMessages

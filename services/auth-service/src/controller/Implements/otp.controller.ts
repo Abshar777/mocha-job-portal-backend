@@ -6,38 +6,43 @@ import OtpRepository from "../../repository/Implements/otp.repository";
 import UserRepository from "../../repository/Implements/user.repository";
 import generateOtp from "../../utils/otpCreator";
 import sendMail from "../../utils/sendMail";
-import type IOtpController from "../interface/IOtpController";
 import type { AuthRequest } from "../../types/api";
 import type IJwtService from "../../types/interface/IJwt";
 import JwtService from "../../utils/jwt";
 import type { JwtPayload } from "jsonwebtoken";
+import { StatusCode } from "../../constants/api";
+import MessageBroker from "../../utils/messageBroker";
+import type IKafka from "../../types/interface/IKafka";
+import { Event } from "../../types/enums";
 
 @Service()
-class OtpController implements IOtpController {
+class OtpController  {
     private readonly otpRepository: IOtpRepository;
     private readonly userRepository: IUserRepository;
     private readonly jwt: IJwtService;
+    private readonly kafka: IKafka;
 
     constructor() {
         this.otpRepository = new OtpRepository();
         this.userRepository = new UserRepository();
         this.jwt = new JwtService();
+        this.kafka = new MessageBroker();
     }
 
     /**
      * @desc    Verify OTP
-     * @body    email, otp
+     * @body     otp
      * @method  PUT
      * @access  Public
      * @cookie  otp
      */
     async verifyOtp(req: Request, res: Response, next: NextFunction) {
         try {
-            const { otp, email } = req.body;
-
+            const { otp } = req.body;
+            const email = req.query.email as string
             const otpToken = req.cookies?.otp;
             if (!otpToken) {
-                res.status(400);
+                res.status(StatusCode.BAD_REQUEST);
                 throw new Error("otp token is not found ")
             }
             const { type, userId } = this.jwt.verifyToken(otpToken, "token") as JwtPayload;
@@ -54,37 +59,56 @@ class OtpController implements IOtpController {
             }
 
             const user = await this.userRepository.findByEmail(email);
-            if (!user || user._id !== userId) {
+            if (!user) {
                 res.status(404);
                 throw new Error("User not found, or User Id does not match cookie");
             }
 
             await this.otpRepository.deleteByEmail(email);
-            res.clearCookie("otp");
+            res.cookie("otp", "", {
+                httpOnly: true,
+                maxAge: 0,
+                path: "/",
+                sameSite: "strict",
+                secure: false,
+            });
+
 
             const jwtPayload = { userId };
-            const accessToken = this.jwt.generateToken(jwtPayload, "1d");
+            const token = this.jwt.generateToken(jwtPayload, "1d");
             const refreshToken = this.jwt.generateRefreshToken(jwtPayload);
+            if (!user.verified) {
+                await this.userRepository.updateUser(user._id as string, { verified: true });
+                this.kafka.publish("Auth-Topic", { data: user }, Event.UPDATE);
+            }
 
-            if (type === "__reset_session") {
-                res.cookie(type, accessToken, {
+
+            if (type === "reset_session") {
+                res.cookie(type, token, {
                     httpOnly: true,
                     maxAge: 1 * 24 * 60 * 60 * 1000,
                     path: "/",
+                    sameSite: "strict",
+                    secure: false,
                 });
+
             } else {
-                await this.userRepository.updateUser(user._id as string, { verified: true });
+
                 res.cookie("__refreshToken", refreshToken, {
                     httpOnly: true,
                     maxAge: 30 * 24 * 60 * 60 * 1000,
                     path: "/",
+                    sameSite: "strict",
+                    secure: false,
                 });
             }
+            console.log(type, "this is token type")
 
             res.status(200).json({
                 success: true,
                 message: "OTP verified successfully",
-                token: accessToken
+                token: token,
+                type: type === "reset_session" ? "FORGET_PASSWORD" : "LOGIN"
             });
         } catch (error) {
             next(error);
@@ -134,7 +158,7 @@ class OtpController implements IOtpController {
                 throw new Error("Failed to send OTP email");
             }
 
-            const type = user.verified ? "__reset_session" : "__refreshToken";
+            const type = user.verified ? "reset_session" : "__refreshToken";
             const jwtPayload = { userId: user._id, type };
             const token = this.jwt.generateToken(jwtPayload);
 
@@ -142,11 +166,16 @@ class OtpController implements IOtpController {
                 httpOnly: true,
                 maxAge: 30 * 24 * 60 * 60 * 1000,
                 path: "/",
+                sameSite: "strict",
+                secure: false,
             });
+            console.log(newOtp, "this code send in you mail 📫 ")
+
 
             res.status(200).json({
                 success: true,
                 message: "OTP resent successfully",
+                data: createdOtp
             });
         } catch (error) {
             next(error);
@@ -164,7 +193,32 @@ class OtpController implements IOtpController {
         try {
             const token = req.cookies?.otp;
             const email = req.query?.email as string
+            const user = await this.userRepository.findByEmail(email);
+
+            if (!user) {
+                res.status(400);
+                throw new Error("User not found");
+            }
+            const userData = {
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                verified: user.verified,
+                _id: user._id
+            }
+
+
+            if (!token) {
+                res.status(400).json({
+                    success: false,
+                    message: "OTP token is not found",
+                    verified: user.verified,
+                    user: userData
+                })
+                return;
+            }
             const tokendata = this.jwt.verifyToken(token, "token") as JwtPayload;
+
 
             if (!tokendata?.userId || !email) {
                 res.status(400);
@@ -173,16 +227,35 @@ class OtpController implements IOtpController {
             const { userId } = tokendata;
 
             const otpRecord = await this.otpRepository.findByUserId(userId);
+
             if (!otpRecord || otpRecord.email !== email) {
-                res.status(404);
-                throw new Error("OTP not found");
+                res.status(400).json({
+                    success: false,
+                    message: "OTP is not found",
+                    verified: user.verified,
+                    user: userData
+                })
+                return;
+
+
             }
+
+
 
             res.status(200).json({
                 success: true,
                 data: {
                     hasOtp: !!otpRecord,
                     createdAt: otpRecord.createdAt,
+
+                },
+                verified: user.verified,
+                user: {
+                    name: user.name,
+                    email: user.email,
+                    role: user.role,
+                    verified: user.verified,
+                    _id: user._id
                 }
             });
         } catch (error) {

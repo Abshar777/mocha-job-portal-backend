@@ -2,7 +2,6 @@ import { Router } from "express";
 import PasswordController from "../controller/Implements/password.controller";
 import { validate } from "../middleware/validateMiddleware";
 import { passwordValidationSchemas } from "../validator/password.validator";
-import authMiddleware from "../middleware/authMiddileware";
 
 const router = Router();
 const passwordController = new PasswordController();
@@ -29,16 +28,17 @@ router.post(
     passwordController.resetPassword.bind(passwordController)
 );
 
+
+
 /**
- * @route   POST /api/password/change
- * @desc    Change password (when logged in)
- * @access  Private
+ * @route   GET /api/password/conformAccess
+ * @desc    Conform password access
+ * @access  Public
  */
 router.post(
-    "/change",
-    authMiddleware,
-    validate(passwordValidationSchemas.changePassword),
-    passwordController.changePassword.bind(passwordController)
+    "/conformAccess",
+    passwordController.conformPasswordAccess.bind(passwordController)
 );
+
 
 export default router; 

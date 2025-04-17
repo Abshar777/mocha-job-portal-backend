@@ -1,8 +1,7 @@
 import { Router } from "express";
-import { Container } from "typedi";
 import OtpController from "../controller/Implements/otp.controller";
 import { validate } from "../middleware/validateMiddleware";
-import { otpVerifySchema, resendOtpSchema } from "../validator/otp.validator";
+import { checkOtpStatusSchema, otpVerifySchema, resendOtpSchema } from "../validator/otp.validator";
 import type IOtpController from "../controller/interface/IOtpController";
 
 const router = Router();
@@ -37,6 +36,7 @@ router.post(
  */
 router.get(
     '/status',
+    validate(checkOtpStatusSchema),
     otpController.checkOtpStatus.bind(otpController)
 );
 

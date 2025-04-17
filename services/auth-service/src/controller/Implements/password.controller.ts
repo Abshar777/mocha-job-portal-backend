@@ -6,20 +6,24 @@ import UserRepository from "../../repository/Implements/user.repository";
 import OtpRepository from "../../repository/Implements/otp.repository";
 import generateOtp from "../../utils/otpCreator";
 import sendMail from "../../utils/sendMail";
-import type { AuthRequest } from "../../types/api";
 import type IJwt from "../../types/interface/IJwt";
 import JwtService from "../../utils/jwt";
+import { hash } from "../../utils/bcrypt";
+import MessageBroker from "../../utils/messageBroker";
+import type IKafka from "../../types/interface/IKafka";
+import { Event } from "../../types/enums";
 
 @Service()
 class PasswordController {
     private readonly userRepository: IUserRepository;
     private readonly otpRepository: IOtpRepository;
     private readonly jwt: IJwt;
-
+    private readonly kafka: IKafka;
     constructor() {
         this.userRepository = new UserRepository();
         this.otpRepository = new OtpRepository();
         this.jwt = new JwtService();
+        this.kafka = new MessageBroker();
 
 
     }
@@ -47,7 +51,7 @@ class PasswordController {
                 otp: otpCode,
                 userId: user._id as string
             });
-
+            console.log('otpCode 📫', otpCode)
             if (!createdOtp) {
                 res.status(500);
                 throw new Error("Failed to create OTP");
@@ -75,7 +79,11 @@ class PasswordController {
             res.status(200).json({
                 success: true,
                 message: "Password reset instructions sent to email",
-                token
+                token,
+                data: {
+                    email: user.email,
+                    _id: user._id
+                }
             });
         } catch (error) {
             next(error);
@@ -84,30 +92,34 @@ class PasswordController {
 
     /**
      * @desc    Reset password with OTP verification
-     * @body    email, otp, newPassword
+     * @body    email, newPassword
      * @method  POST
      * @access  Public
      */
     async resetPassword(req: Request, res: Response, next: NextFunction) {
         try {
-            const { email, otp, newPassword } = req.body;
+            const { email, newPassword } = req.body;
 
-            const isValid = await this.otpRepository.verifyOtp(email, otp);
-            if (!isValid) {
-                res.status(400);
-                throw new Error("Invalid or expired OTP");
-            }
 
             const user = await this.userRepository.findByEmail(email);
             if (!user) {
                 res.status(404);
                 throw new Error("User not found");
             }
-
-            await this.userRepository.updateUser(user._id as string, { password: newPassword });
+            const hashedPassword = await hash(newPassword);
+            const updatedUser = await this.userRepository.updateUser(user._id as string, { password: hashedPassword });
+            this.kafka.publish("Auth-Topic", { data: updatedUser }, Event.UPDATE);
+            if (!updatedUser) {
+                res.status(500);
+                throw new Error("Failed to update password");
+            }
 
             await this.otpRepository.deleteByEmail(email);
-
+            res.cookie("reset_session", "", {
+                httpOnly: true,
+                maxAge: 0,
+                path: "/",
+            });
             res.status(200).json({
                 success: true,
                 message: "Password reset successful"
@@ -117,42 +129,43 @@ class PasswordController {
         }
     }
 
-    /**
-     * @desc    Change password (when logged in)
-     * @body    currentPassword, newPassword
-     * @method  POST
-     * @access  Private
-     * @header  Authorization Bearer token
-     */
-    async changePassword(req: AuthRequest, res: Response, next: NextFunction) {
-        try {
-            const { currentPassword, newPassword } = req.body;
-            const userId = req.user;
 
+
+    /**
+     * @desc    Confirm password access
+     * @body    resetToken
+     * @method  POST
+     * @access  Public
+     */
+    async conformPasswordAccess(req: Request, res: Response, next: NextFunction) {
+        try {
+            console.log(req.cookies, "this is cookies")
+            const resetToken = req.cookies?.reset_session || req.body.resetToken;
+            if (!resetToken) {
+                res.status(401);
+                throw new Error("Not authorized");
+            }
+            const { userId } = this.jwt.verifyToken(resetToken, "token") as { userId: string };
             if (!userId) {
                 res.status(401);
                 throw new Error("Not authorized");
             }
-
-            const user = await this.userRepository.findById(userId);
+            const user = await this.userRepository.findById(userId as string);
             if (!user) {
                 res.status(404);
                 throw new Error("User not found");
             }
-
-            const isMatch = user.comparePassword(currentPassword);
-            if (!isMatch) {
-                res.status(400);
-                throw new Error("Current password is incorrect");
-            }
-
-            await this.userRepository.updateUser(userId, { password: newPassword });
-
             res.status(200).json({
                 success: true,
-                message: "Password changed successfully"
-            });
+                message: "Password access confirmed",
+                data: {
+                    email: user.email,
+                    _id: user._id
+                }
+            })
+
         } catch (error) {
+            console.log(error, "this is error")
             next(error);
         }
     }

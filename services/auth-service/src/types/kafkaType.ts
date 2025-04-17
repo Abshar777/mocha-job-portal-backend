@@ -3,4 +3,5 @@ export type messageType = Record<string, any> & {
 };
 
 
-export type TOPIC_TYPE = "User-Topic" | "Post-Topic-User" | "Story-topic";
+export type TOPIC_TYPE = "User-Topic" | "Auth-Topic" | "Story-topic";
+

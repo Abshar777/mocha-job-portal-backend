@@ -49,6 +49,29 @@ services:
         - action: rebuild
           path: ./services/auth-service/package.json
 
+  userService:
+    build: ./services/user-service
+    container_name: Mocha-user-service_c
+    image: abshar777/mocha-user-service
+    restart: unless-stopped
+    env_file:
+      - ./services/user-service/.env
+    depends_on:
+      - kafka
+    ports:
+      - 4001:4001
+    networks: 
+      - mochanetwork
+    develop:
+      watch:
+        - action: sync
+          path: ./services/user-service
+          target: /app/
+          ignore:
+            - node_modules/
+        - action: rebuild
+          path: ./services/user-service/package.json
+
 
 
   nginx:
@@ -61,6 +84,7 @@ services:
       - mochanetwork
     depends_on:
       - authService
+      - userService
 
 networks:
   mochanetwork:

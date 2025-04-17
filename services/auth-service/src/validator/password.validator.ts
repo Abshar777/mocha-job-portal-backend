@@ -14,9 +14,6 @@ export const passwordValidationSchemas = {
             email: z.string({
                 required_error: "Email is required",
             }).email("Invalid email format"),
-            otp: z.string({
-                required_error: "OTP is required",
-            }).length(6, "OTP must be exactly 6 characters"),
             newPassword: z.string({
                 required_error: "New password is required",
             }).min(6, "Password must be at least 6 characters"),
@@ -25,9 +22,9 @@ export const passwordValidationSchemas = {
 
     changePassword: z.object({
         body: z.object({
-            currentPassword: z.string({
-                required_error: "Current password is required",
-            }),
+            email: z.string({
+                required_error: "Email is required",
+            }).email("Invalid email format"),
             newPassword: z.string({
                 required_error: "New password is required",
             }).min(6, "Password must be at least 6 characters"),

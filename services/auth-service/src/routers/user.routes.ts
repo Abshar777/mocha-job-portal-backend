@@ -7,6 +7,12 @@ import { validationSchemas } from "../validator/auth.validator";
 const router = express.Router();
 const controller = new UserController();
 
+
+
+
+
+
+
 /**
  * @route   POST /api/auth/login
  * @desc    Login user
@@ -18,16 +24,7 @@ router.post(
     controller.login.bind(controller)
 );
 
-/**
- * @route   POST /api/auth/register
- * @desc    Register new user
- * @access  Public
- */
-router.post(
-    "/register",
-    validate(validationSchemas.register),
-    controller.registerUser.bind(controller)
-);
+
 
 /**
  * @route   GET /api/auth/check
@@ -62,29 +59,16 @@ router.post(
     controller.refreshTokenGet.bind(controller)
 );
 
+
+
+
 /**
- * @route   GET /api/auth/users
- * @desc    Get all users (for testing purposes)
- * @access  Public (should be Admin in production)
- * @todo    Add admin middleware
+ * @route   GET PUT /auth/oauth-login
+ * @desc    handle social media login
+ * @access  Public
  */
-router.get(
-    "/users",
-    controller.getAllUsers.bind(controller)
-);
 
+router.post("/oauth-login", controller.OAuthLogin.bind(controller))
 
-router.get(
-    "/test",
-    (req, res) => {
-        console.log('🟢 get')
-        res.cookie("test", { data: "ahbaba" }, {
-            httpOnly: true,
-            maxAge: 30 * 24 * 60 * 60 * 1000,
-            path: "/",
-        })
-        res.status(200).json({data:"fdaya"})
-    }
-)
 
 export default router;

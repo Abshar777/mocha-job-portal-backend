@@ -9,7 +9,7 @@ import morgan from "morgan";
 import helmet from "helmet";
 import mongosanitize from "express-mongo-sanitize"
 import limiter from "./utils/rateLimiter";
-import authRouter from "./routers/auth.routes"
+import authRouter from "./routers/user.routes"
 import otpRouter from "./routers/otp.routes";
 import passwordRoute from "./routers/password.routes";
 
@@ -34,25 +34,30 @@ const apiRoot = process.env.API_ROOT;
 // util middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser())
 
 
 // secuirity middleware
 app.use(cors({
-    origin: "http://localhost:3000",
+    origin: process.env.FRONTEND_LINK,
     methods: ["GET", "PATCH", "POST", "DELETE", "PUT"],
     credentials: true,
+
 }))
+app.use(cookieParser())
 app.use(helmet())
 app.use(mongosanitize())
 if (process.env.NODE_ENV === "development") app.use(morgan("dev"));
 // else app.use(limiter)
 
 
+
 // router middleware
 app.use(apiRoot+"/auth",authRouter);
 app.use(apiRoot+"/otp",otpRouter);
 app.use(apiRoot+"/password",passwordRoute);
+
+
+
 
 
 // error middleware
@@ -63,7 +68,7 @@ app.use(errorHandler);
 
 
 app.listen(port, () => {
-    console.log("🟡 message service running on " + port);
+    console.log("🟡 auth service running on " + port);
 });
 
 
