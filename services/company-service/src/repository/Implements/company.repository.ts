@@ -1,5 +1,5 @@
 import { Company, type CompanyDocument } from '../../models/company.model';
-import type { ICompanyRepository } from '../interface/company.repository';
+import type { ICompanyRepository } from '../interface/ICompanyRepo';
 import { Types } from 'mongoose';
 
 export class CompanyRepository implements ICompanyRepository {

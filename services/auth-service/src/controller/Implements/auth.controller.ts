@@ -16,6 +16,7 @@ import { googleAuthProviderApi, githubAuthProviderApi, facebookAuthProviderApi }
 import { v4 as uuid } from "uuid";
 import { StatusCode, StatusMessages } from "../../constants/api";
 import { Event } from "../../types/enums";
+import { refreshTokenCookie } from "../../constants/cookies";
 
 @Service()
 class UserController {
@@ -138,13 +139,7 @@ class UserController {
             const token = this.jwt.generateAccessToken(jwtPayload);
             const refreshToken = this.jwt.generateRefreshToken(jwtPayload);
 
-            res.cookie("__refreshToken", refreshToken, {
-                httpOnly: true,
-                maxAge: 30 * 24 * 60 * 60 * 1000,
-                path: "/",
-                sameSite: "strict",
-                secure: false,
-            });
+            res.cookie("__refreshToken", refreshToken,refreshTokenCookie);
 
             const data = {
                 name: user.name,
@@ -234,11 +229,7 @@ class UserController {
                 const jwtPayload = { userId: user._id };
                 const token = this.jwt.generateAccessToken(jwtPayload);
                 req.user = userId as string;
-                res.cookie("__refreshToken", refreshToken, {
-                    httpOnly: true,
-                    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-                    path: "/",
-                });
+                res.cookie("__refreshToken", refreshToken, refreshTokenCookie);
 
                 res.status(200).json({ token, message: "succesfully created token" })
             }
@@ -321,13 +312,7 @@ class UserController {
             const accessToken = this.jwt.generateAccessToken(jwtPayload);
             const refreshToken = this.jwt.generateRefreshToken(jwtPayload);
 
-            res.cookie("__refreshToken", refreshToken, {
-                httpOnly: true,
-                maxAge: 30 * 24 * 60 * 60 * 1000,
-                path: "/",
-                sameSite: "strict",
-                secure: false,
-            });
+            res.cookie("__refreshToken", refreshToken, refreshTokenCookie);
 
             const data = {
                 name: user.name,

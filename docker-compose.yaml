@@ -72,6 +72,29 @@ services:
         - action: rebuild
           path: ./services/user-service/package.json
 
+  companyService:
+    build: ./services/company-service
+    container_name: Mocha-company-service_c
+    image: abshar777/mocha-company-service
+    restart: unless-stopped
+    env_file:
+      - ./services/company-service/.env
+    depends_on:
+      - kafka
+    ports:
+      - 4002:4002
+    networks: 
+      - mochanetwork
+    develop:
+      watch:
+        - action: sync
+          path: ./services/company-service
+          target: /app/
+          ignore:
+            - node_modules/
+        - action: rebuild
+          path: ./services/company-service/package.json
+
 
 
   nginx:

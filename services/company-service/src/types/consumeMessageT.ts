@@ -1,4 +1,4 @@
-import type { ObjectId } from "mongoose";
+import { ObjectId } from "mongoose";
 export type TPayload<T>={
     event:string,
     message:{

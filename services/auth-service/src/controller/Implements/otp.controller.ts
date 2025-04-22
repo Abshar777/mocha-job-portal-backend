@@ -14,6 +14,7 @@ import { StatusCode } from "../../constants/api";
 import MessageBroker from "../../utils/messageBroker";
 import type IKafka from "../../types/interface/IKafka";
 import { Event } from "../../types/enums";
+import { refreshTokenCookie } from "../../constants/cookies";
 
 @Service()
 class OtpController  {
@@ -94,13 +95,7 @@ class OtpController  {
 
             } else {
 
-                res.cookie("__refreshToken", refreshToken, {
-                    httpOnly: true,
-                    maxAge: 30 * 24 * 60 * 60 * 1000,
-                    path: "/",
-                    sameSite: "strict",
-                    secure: false,
-                });
+                res.cookie("__refreshToken", refreshToken, refreshTokenCookie);
             }
             console.log(type, "this is token type")
 
