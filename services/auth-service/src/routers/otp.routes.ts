@@ -2,10 +2,9 @@ import { Router } from "express";
 import OtpController from "../controller/Implements/otp.controller";
 import { validate } from "../middleware/validateMiddleware";
 import { checkOtpStatusSchema, otpVerifySchema, resendOtpSchema } from "../validator/otp.validator";
-import type IOtpController from "../controller/interface/IOtpController";
 
 const router = Router();
-const otpController: IOtpController = new OtpController();
+const otpController= new OtpController();
 
 /**
  * @route   POST /api/otp/verify

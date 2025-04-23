@@ -7,19 +7,32 @@ const router = express.Router();
 const controller = new SubscriptionController();
 
 
-/**
- * @route   POST /api/subscription/addSubscriptionToCompany
- * @desc    add subscription to company
- * @access  Private
- */
-router.post("/addSubscriptionToCompany", authCompanyMiddilware, controller.addSubscriptionToCompany.bind(controller));
 
 
 /**
  * @route   GET /api/subscription/getAllSubscriptions
  * @desc    get all subscriptions
+ * @access  Public
+ * 
+ */
+router.get("/getAllSubscriptions", controller.getAllSubscriptions.bind(controller));
+
+
+/**
+ * @route   POST /api/subscription/createCheckoutSession
+ * @desc    create checkout session for stripe payment
  * @access  Private
  */
-router.get("/getAllSubscriptions", authCompanyMiddilware, controller.getAllSubscriptions.bind(controller));
+router.post("/createCheckoutSession", authCompanyMiddilware, controller.createCheckoutSession.bind(controller));
+
+
+
+/**
+ * @route   POST /api/subscription/completeSubscriptionPayment
+ * @desc    complete subscription payment
+ * @access  Private
+ */
+router.post("/completeSubscriptionPayment", authCompanyMiddilware, controller.completeSubscriptionPayment.bind(controller));
+
 
 export default router;

@@ -126,6 +126,7 @@ class OtpController  {
             }
 
             const newOtp = generateOtp();
+            console.log(newOtp, "this is new otp 🟢")
             const createdOtp = await this.otpRepository.create({
                 userId: user._id as string,
                 email,

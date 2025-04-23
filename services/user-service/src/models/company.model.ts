@@ -8,6 +8,7 @@ interface CompanyAddress {
 }
 
 export interface CompanyDocument extends Document {
+    userId: Types.ObjectId;
     companyName?: string;
     companyWebsite?: string;
     companyDescription?: string;
@@ -33,6 +34,7 @@ const CompanyAddressSchema = new Schema<CompanyAddress>(
 
 const CompanySchema = new Schema<CompanyDocument>(
     {
+        userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
         companyName: { type: String, unique: true },
         companyWebsite: { type: String, unique: true },
         companyDescription: { type: String },

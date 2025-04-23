@@ -27,6 +27,18 @@ router.post(
 
 
 /**
+ * @route   POST /api/auth/register
+ * @desc    Register user
+ * @access  Public
+ */
+router.post("/register",
+    validate(validationSchemas.register),
+    controller.registerUser.bind(controller)
+);
+
+
+
+/**
  * @route   GET /api/auth/check
  * @desc    Check user authentication
  * @access  Private

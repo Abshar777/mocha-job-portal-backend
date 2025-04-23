@@ -8,6 +8,8 @@ export interface ISubscription extends Document {
     type: SubscriptionType;
     name: string;
     price: number;
+    productId: string;
+    priceId: string;
     features: {
         detailedJobDescription: boolean;
         jobLocationsCount: number;
@@ -27,6 +29,7 @@ export interface ISubscription extends Document {
 
 const SubscriptionSchema = new Schema<ISubscription>(
     {
+        
         type: {
             type: String,
             enum: Object.values(SubscriptionType),
@@ -36,14 +39,22 @@ const SubscriptionSchema = new Schema<ISubscription>(
             type: String,
             required: true
         },
+        productId: {
+            type: String,
+            required: true
+        },
+        priceId: {
+            type: String,
+            required: true
+        },
         price: {
             type: Number,
             required: true
         },
         features: {
             detailedJobDescription: {
-                type: Boolean,
-                default: false
+                type: Number,
+                default: 250
             },
             jobLocationsCount: {
                 type: Number,
@@ -80,8 +91,6 @@ const SubscriptionSchema = new Schema<ISubscription>(
 
 
 
-
-
 export const Subscription = mongoose.model<ISubscription>('Subscription', SubscriptionSchema);
 
 
@@ -91,14 +100,17 @@ export async function seedDefaultSubscriptions() {
         const count = await Subscription.countDocuments();
         if (count > 0) return;
 
+        
 
         await Subscription.create([
             {
                 type: SubscriptionType.HOT_VACANCY,
                 name: 'HOT - VACANCY',
                 price: 1650,
+                productId: "prod_SBHXQw942fmQxX",
+                priceId:"price_1RGuyqKrOPuZIW5hYUJ1kkjc",
                 features: {
-                    detailedJobDescription: true,
+                    detailedJobDescription: Infinity,
                     jobLocationsCount: 3,
                     applicantsLimit: Infinity,
                     expiryDays: 90,
@@ -111,8 +123,10 @@ export async function seedDefaultSubscriptions() {
                 type: SubscriptionType.CLASSIFIED,
                 name: 'CLASSIFIED',
                 price: 850,
+                productId: "prod_SBIKsdkBzYoiBW",
+                priceId:"price_1RGvk0KrOPuZIW5hbW0331gN",
                 features: {
-                    detailedJobDescription: false,
+                    detailedJobDescription: 250,
                     jobLocationsCount: 3,
                     applicantsLimit: Infinity,
                     expiryDays: 90,
@@ -125,8 +139,10 @@ export async function seedDefaultSubscriptions() {
                 type: SubscriptionType.STANDARD,
                 name: 'STANDARD',
                 price: 400,
+                priceId:"price_1RGvksKrOPuZIW5hCK7ZtZuF",
+                productId: "prod_SBILzGUdQrl9zk",
                 features: {
-                    detailedJobDescription: false,
+                    detailedJobDescription: 250,
                     jobLocationsCount: 1,
                     applicantsLimit: 200,
                     expiryDays: 30,
@@ -135,6 +151,7 @@ export async function seedDefaultSubscriptions() {
                 },
                 validityDays: 30
             }
+
         ]);
 
         console.log('Default subscriptions seeded successfully');

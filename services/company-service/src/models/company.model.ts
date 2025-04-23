@@ -22,10 +22,12 @@ export interface CompanyDocument extends Document {
     followers: Types.ObjectId[];
     plan?: SubscriptionType;
     subscription?: {
+        stripeSessionId: string;
         subscriptionId: ObjectId;
         startDate: Date;
         endDate: Date;
         isActive: boolean;
+        customerId: string;
     };
 
 }
@@ -54,10 +56,12 @@ const CompanySchema = new Schema<CompanyDocument>(
         rating: { type: Number, default: 0 },
         followers: [{ type: Schema.Types.ObjectId, ref: 'User', default: [] }],
         subscription: {
+            stripeSessionId: { type: String, default: null },
             subscriptionId: { type: Schema.Types.ObjectId, ref: 'Subscription', default: null },
             startDate: { type: Date, default: null },
             endDate: { type: Date, default: null },
             isActive: { type: Boolean, default: false },
+            customerId: { type: String, default: null },
         },
 
     },

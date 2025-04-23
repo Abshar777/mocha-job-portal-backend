@@ -80,7 +80,7 @@ class UserController {
             } else if (role === Roles.RECRUITER) {
                 const data = {
                     ...recruiter,
-                    userId,
+                    userId: userId as unknown as any,
                 }
                 const existingCompany = await this.companyRepository.findOne({ $or: [{ companyName: data.companyName }, { companyWebsite: data.companyWebsite }] });
                 if (existingCompany) {
